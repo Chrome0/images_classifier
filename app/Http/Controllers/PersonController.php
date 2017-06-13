@@ -270,21 +270,48 @@ class PersonController extends Controller
     public function upload(Request $request)
     {
     	$file = $request->file('zip');
-        //$file = $request->file('zip');
         $filename =  $file->getClientOriginalName();
         $filenames = explode('.',$filename);
-        $category_name = $filenames[0];
+        $file_name = $filenames[0];
         $extend = $filenames[1];
-        $zipname = $category_name.'.'.$extend;
-        $file->move('Image/'.$category_name.'/',$zipname);
-        $path = "Image/".$category_name."/";
-        $zipfile = zip_open('Image/'.$category_name.$zipname);
+        $tmp = md5('tmp');
+        $path = 'Image/'.$tmp.'/';
+        $zipname = $file_name.'.'.$extend;
+        $file->move($path,$zipname);
+        if($newzipname = str_replace('(','',$zipname))
+        {
+            $newzipname1 = str_replace(')','',$newzipname);
+            rename($path.$zipname,$path.$newzipname1);
+            $zipname = $newzipname1;
+        }
+
+        //$zipfile = zip_open('Image/'.$file_name.$zipname);
         $bool = system('unzip '.$path.$zipname.' -d '.$path);
-        system('rm -f '.$path.$filename);
-        if($bool){
+        system('rm -f '.$path.$zipname);
+        $images = glob($path.'*.*');
+        $extends = explode(",", "jpg,jpeg,png");
+        $flag = 0;
+        $flag1 = 0;
+        foreach ($images as $image)
+        {
+            $imagename = basename($image);
+            $image_names = explode('.',$imagename);
+            $image_name = $image_names[0];
+            $image_extend = $image_names[1];
+            if(in_array($image_extend,$extends)){
+                $bool1 = rename($path.$image_name.'.'.$image_extend,'Image/'.md5($image).'.'.$image_extend);
+                $flag1++;
+            }else{
+                $flag++;
+                system('rm -f '.$path.$image_name.'.'.$image_extend);
+            }
+
+        }
+        system('rm -rf Image/'.$tmp);
+        if($flag == 0&&$flag1 > 0){
            return Common::returnJsonResponse(1,'上传成功',null);
         }else{
-           return Common::returnJsonResponse(0,'上传失败',null);
+           return Common::returnJsonResponse(0,'上传失败，压缩包可能存在非图片！',null);
         }
     }
     public function getLoginUserNumber(Request $request){
